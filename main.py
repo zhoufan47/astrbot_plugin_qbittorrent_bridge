@@ -1,4 +1,5 @@
 import asyncio
+from typing import Optional
 
 from astrbot.api.event import filter, AstrMessageEvent, MessageEventResult
 from astrbot.api.star import Context, Star, register
@@ -7,7 +8,7 @@ import qbittorrentapi
 import re
 
 
-def _extract_hash(magnet_link: str) -> str:
+def _extract_hash(magnet_link: str) -> Optional[str]:
     """从磁力链接中提取 Info Hash"""
     match = re.search(r'xt=urn:btih:([a-zA-Z0-9]+)', magnet_link)
     if match:
@@ -35,7 +36,7 @@ class QBittorrentBridge(Star):
                                                 port=self.web_ui_port,
                                                 username=self.web_ui_username,
                                                 password=self.web_ui_password)
-            self.client.auth_log_in()
+            await asyncio.to_thread(self.client.auth_log_in())
             logger.info(f"✅ 成功连接到 qBittorrent (v{self.client.app.version})")
             logger.info(f"   API 版本: {self.client.app.web_api_version}")
         except Exception as e:
@@ -69,14 +70,25 @@ class QBittorrentBridge(Star):
         yield event.plain_result(f"🔍 开始测试，目标 Hash: {info_hash}")
 
         # 2. 添加任务
-        logger.info("➕ 正在发送任务到 qBittorrent...")
-        self.client.torrents_add(urls=magnet_link, tags=['magnet_tester_script'], save_path=None)
-        await asyncio.sleep(1)
+        try:
+            logger.info("➕ 正在发送任务到 qBittorrent...")
+            await asyncio.to_thread(self.client.torrents_add(urls=magnet_link, tags=['magnet_tester_script'], save_path=None))
+            await asyncio.sleep(1)
+        except Exception as e:
+            logger.warning(f"qBittorrent添加任务失败: {e}")
+            yield event.plain_result(f"qBittorrent添加任务失败: {e})")
+
+            return
+        logger.info("-" * 10)
 
         if self.custom_trackers:
-            logger.info(f"📡 注入 {len(self.custom_trackers)} 个自定义 Tracker...")
-            self.client.torrents_add_trackers(torrent_hash=info_hash, urls=self.custom_trackers)
-            self.client.torrents_reannounce(torrent_hashes=info_hash)
+            try:
+                logger.info(f"📡 注入 {len(self.custom_trackers)} 个自定义 Tracker...")
+                await asyncio.to_thread(self.client.torrents_add_trackers(torrent_hash=info_hash, urls=self.custom_trackers))
+                await asyncio.to_thread(self.client.torrents_reannounce(torrent_hashes=info_hash))
+            except Exception as e:
+                logger.warning(f"qBittorrent 注入Tracker异常: {e}")
+                yield event.plain_result(f"qBittorrent 注入Tracker异常: {e}")
         # 4. 等待元数据 (Metadata)
         logger.info("⏳ 正在解析元数据 (等待中)...")
         meta_success = False
@@ -90,7 +102,7 @@ class QBittorrentBridge(Star):
             logger.error("❌ 元数据获取超时。该资源可能无人做种。")
             yield event.plain_result("❌ 元数据获取超时。该资源可能无人做种。")
             logger.info("🧹 清理任务中...")
-            self.client.torrents_delete(torrent_hashes=info_hash, delete_files=True)
+            await asyncio.to_thread(self.client.torrents_delete(torrent_hashes=info_hash, delete_files=True))
             return
 
         # 获取详细信息
@@ -105,7 +117,7 @@ class QBittorrentBridge(Star):
 
         # 获取文件列表
         try:
-            files = self.client.torrents_files(torrent_hash=info_hash)
+            files = await asyncio.to_thread(self.client.torrents_files(torrent_hash=info_hash))
             logger.info(f"📄 文件列表 (前 5 个 / 共 {len(files)} 个):")
             for f in files[:5]:
                 logger.info(f"   - {f.name} ({f.size / 1024 / 1024:.2f} MB)")
@@ -116,7 +128,7 @@ class QBittorrentBridge(Star):
         # 5. 持续下载测试
         logger.info(f"🚀 开始 {self.duration} 秒下载性能测试...")
         await asyncio.sleep(self.duration)
-        logger.info("-" * 50)
+        logger.info("-" * 10)
 
         # 6. 最终报告
         t_list = await asyncio.to_thread(self.client.torrents_info, torrent_hashes=info_hash)
@@ -136,9 +148,9 @@ class QBittorrentBridge(Star):
             yield event.plain_result(final_report)
 
         # 7. 清理
-        logger.info("-" * 50)
+        logger.info("-" * 10)
         logger.info("🧹 清理中：删除测试任务及下载文件...")
-        self.client.torrents_delete(torrent_hashes=info_hash, delete_files=True)
+        await asyncio.to_thread(self.client.torrents_delete(torrent_hashes=info_hash, delete_files=True))
         logger.info("✅ 测试结束，清理完成。")
 
     @filter.command("magadd")
@@ -150,12 +162,12 @@ class QBittorrentBridge(Star):
             return
 
         logger.info("➕ 正在发送任务到 qBittorrent...")
-        self.client.torrents_add(urls=magnet_link, tags=['magnet_tester_script'], save_path=None)
+        await asyncio.to_thread(self.client.torrents_add(urls=magnet_link, tags=['magnet_tester_script'], save_path=None))
         yield event.plain_result(f"✅ 任务已发送至 qBittorrent，任务hash:{info_hash}。")
         if self.custom_trackers:
             logger.info(f"📡 注入 {len(self.custom_trackers)} 个自定义 Tracker...")
-            self.client.torrents_add_trackers(torrent_hash=info_hash, urls=self.custom_trackers)
-            self.client.torrents_reannounce(torrent_hashes=info_hash)
+            await asyncio.to_thread(self.client.torrents_add_trackers(torrent_hash=info_hash, urls=self.custom_trackers))
+            await asyncio.to_thread(self.client.torrents_reannounce(torrent_hashes=info_hash))
 
     @filter.command("maginfo")
     async def mag_info(self, event: AstrMessageEvent,info_hash: str):
