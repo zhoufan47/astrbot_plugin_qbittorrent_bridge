@@ -56,10 +56,10 @@ class qBittorrentBridge(Star):
             logger.info(f"任务信息已存在，直接返回任务状态")
             t = t_list[0]
             availability = t.get('availability', 0)
-            final_report = (f"🏁 [任务已存在，当前状态]:{t.state}\n"
+            final_report = (f"🏁 任务已存在，当前状态:{t.state}\n"
                             f"📊 健康度: {availability:.2f}\n"
-                            f"🌱 做种人数 (Seeds): {t.num_seeds} (已连接) / {t.num_complete} (全网发现)\n"
-                            f"👥 下载人数 (Leechers): {t.num_leechs} (已连接) / {t.num_incomplete} (全网发现)\n"
+                            f"🌱 做种人数: {t.num_seeds} (已连接) / {t.num_complete} (全网发现)\n"
+                            f"👥 下载人数: {t.num_leechs} (已连接) / {t.num_incomplete} (全网发现)\n"
                             f"⬇️ 下载速度: {t.dlspeed / 1024:.2f} KB/s")
             yield event.plain_result(final_report)
             return
@@ -90,8 +90,8 @@ class qBittorrentBridge(Star):
         sys.stdout.write("\n")  # 换行
 
         if not meta_success:
-            logger.error("❌ 元数据获取超时。该资源可能无人做种 (Dead Torrent)。")
-            yield event.plain_result("❌ 元数据获取超时。该资源可能无人做种 (Dead Torrent)。")
+            logger.error("❌ 元数据获取超时。该资源可能无人做种。")
+            yield event.plain_result("❌ 元数据获取超时。该资源可能无人做种。")
             logger.info("🧹 清理任务中...")
             self.client.torrents_delete(torrent_hashes=info_hash, delete_files=True)
             return
@@ -117,27 +117,7 @@ class qBittorrentBridge(Star):
 
         # 5. 持续下载测试
         logger.info(f"🚀 开始 {self.duration} 秒下载性能测试...")
-
-        start_test = time.time()
-        while time.time() - start_test < self.duration:
-            t_list = self.client.torrents_info(torrent_hashes=info_hash)
-            if not t_list: break
-            t = t_list[0]
-
-            elapsed = int(time.time() - start_test)
-
-            # 动态进度条（保留 sys.stdout.write 以获得更好的控制台体验）
-            sys.stdout.write(
-                f"\r[{elapsed}/{ self.duration}s] "
-                f"速度: {t.dlspeed / 1024:.1f} KB/s | "
-                f"做种: {t.num_seeds} (全网:{t.num_complete}) | "
-                f"下载: {t.num_leechs} | "
-                f"进度: {t.progress * 100:.1f}%"
-            )
-            sys.stdout.flush()
-            time.sleep(1)
-
-        sys.stdout.write("\n")  # 换行
+        time.sleep(self.duration)
         logger.info("-" * 50)
 
         # 6. 最终报告
@@ -145,12 +125,12 @@ class qBittorrentBridge(Star):
         if t_list:
             t = t_list[0]
             availability = t.get('availability', 0)
-            final_report = (f"🏁 [一分钟测试报告]\n"
+            final_report = (f"🏁 [{self.duration} 秒测试报告]\n"
                             f"📊 健康度: {availability:.2f}\n"
-                            f"🌱 做种人数 (Seeds): {t.num_seeds} (已连接) / {t.num_complete} (全网发现)\n"
-                            f"👥 下载人数 (Leechers): {t.num_leechs} (已连接) / {t.num_incomplete} (全网发现)\n"
+                            f"🌱 做种人数: {t.num_seeds} (已连接) / {t.num_complete} (全网发现)\n"
+                            f"👥 下载人数: {t.num_leechs} (已连接) / {t.num_incomplete} (全网发现)\n"
                             f"⬇️ 最终下载速度: {t.dlspeed / 1024:.2f} KB/s\n"
-                            f"📥 一分钟实际下载量: {t.downloaded / 1024 / 1024:.2f} MB")
+                            f"📥 一分钟实际下载量: {t.downloaded / 1024 / 1024:.2f} MB\n")
             if availability < 1.0:
                 final_report = final_report + " ⚠️ 警告：健康度小于 1.0，说明全网可能没有完整资源。\n"
             else:
