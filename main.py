@@ -119,13 +119,16 @@ class QBittorrentBridge(Star):
 
         # 获取详细信息
         t_list = await asyncio.to_thread(self.client.torrents_info, torrent_hashes=info_hash)
-        t = t_list[0]
-        first_report = (f"✅ 元数据获取成功！\n"
-                        f"📦 资源名称: {t.name}\n"
-                        f"💾 总大小: {t.total_size / 1024 / 1024:.2f} MB")
-        logger.info("-" * 10)
-        logger.info(first_report)
-        yield event.plain_result(first_report)
+        if t_list:
+            t = t_list[0]
+            first_report = (f"✅ 元数据获取成功！\n"
+                            f"📦 资源名称: {t.name}\n"
+                            f"💾 总大小: {t.total_size / 1024 / 1024:.2f} MB")
+            logger.info("-" * 10)
+            logger.info(first_report)
+            yield event.plain_result(first_report)
+        else:
+            yield event.plain_result("未能获取到任务信息，任务可能添加失败")
 
         # 获取文件列表
         try:
