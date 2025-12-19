@@ -39,9 +39,9 @@ class QBittorrentBridge(Star):
                                                 port=self.web_ui_port,
                                                 username=self.web_ui_username,
                                                 password=self.web_ui_password)
-            version = asyncio.to_thread(lambda: self.client.app.version)
+            version = await asyncio.to_thread(lambda: self.client.app.version)
             logger.info(f"✅ 成功连接到 qBittorrent (v{version})")
-            api_version =  asyncio.to_thread(lambda: self.client.app.web_api_version)
+            api_version = await asyncio.to_thread(lambda: self.client.app.web_api_version)
             logger.info(f"   API 版本: {api_version}")
         except Exception as e:
             logger.error(f"❌ 连接 qBittorrent 失败: {e}")
@@ -54,9 +54,9 @@ class QBittorrentBridge(Star):
                                             port=self.web_ui_port,
                                             username=self.web_ui_username,
                                             password=self.web_ui_password)
-        version = asyncio.to_thread(lambda: self.client.app.version)
+        version = await asyncio.to_thread(lambda: self.client.app.version)
         logger.info(f"✅ 成功连接到 qBittorrent (v{version})")
-        api_version = asyncio.to_thread(lambda: self.client.app.web_api_version)
+        api_version = await asyncio.to_thread(lambda: self.client.app.web_api_version)
         logger.info(f"   API 版本: {api_version}")
         yield event.plain_result(f"✅ 成功连接到 qBittorrent (v{version})")
 
@@ -199,7 +199,7 @@ class QBittorrentBridge(Star):
         logger.info("✅ 测试结束，清理完成。")
 
     @filter.command("magadd")
-    async def mag_add(self, event: AstrMessageEvent,magnet_link: str):
+    async def mag_add(self, event: AstrMessageEvent, magnet_link: str):
         info_hash = _extract_hash(magnet_link)
         if not info_hash:
             logger.error("❌ 无效的磁力链接，无法提取 Hash。")
