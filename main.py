@@ -43,6 +43,18 @@ class QBittorrentBridge(Star):
             logger.error(f"❌ 连接 qBittorrent 失败: {e}")
             logger.error("   请检查：1. qBittorrent 是否已启动？ 2. Web UI 是否已开启？ 3. 端口/账号/密码是否正确？")
 
+    @filter.command("qblogin")
+    async def qb_login(self, event: AstrMessageEvent):
+        yield event.plain_result("开始重新登陆qBittorrent API")
+        self.client = qbittorrentapi.Client(host=self.web_ui_host,
+                                            port=self.web_ui_port,
+                                            username=self.web_ui_username,
+                                            password=self.web_ui_password)
+        await asyncio.to_thread(self.client.auth_log_in())
+        logger.info(f"✅ 成功连接到 qBittorrent (v{self.client.app.version})")
+        logger.info(f"   API 版本: {self.client.app.web_api_version}")
+        yield event.plain_result(f"✅ 成功连接到 qBittorrent (v{self.client.app.version})")
+
     @filter.command("magtest")
     async def mag_test(self, event: AstrMessageEvent,magnet_link: str):
         info_hash = _extract_hash(magnet_link)
@@ -67,7 +79,7 @@ class QBittorrentBridge(Star):
 
 
         logger.info(f"🔍 开始测试，目标 Hash: {info_hash}")
-        yield event.plain_result(f"🔍 开始测试，目标 Hash: {info_hash}")
+        yield event.plain_result(f"🔍 开始测试，目标 Hash: {info_hash}，注意！该任务将在测试完成后被删除！")
 
         # 2. 添加任务
         try:
