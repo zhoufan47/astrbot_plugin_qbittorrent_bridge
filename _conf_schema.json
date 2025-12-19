@@ -27,5 +27,10 @@
     "tracker_list": {
         "description": "自定义tracker",
         "type": "list"
+    },
+    "meta_timeout": {
+          "description": "元数据等待时间",
+          "type": "int",
+          "default": 60
     }
 }

@@ -26,6 +26,7 @@ class qBittorrentBridge(Star):
         self.web_ui_password = config.get("qbittorrent_web_ui_password", "")
         self.duration = config.get("duration",30)
         self.custom_trackers = config.get("tracker_list",[])
+        self.meta_timeout = config.get("meta_timeout",60)
         logger.info("插件 [qBittorrent Bridge] 已初始化。")
 
     async def initialize(self):
@@ -68,7 +69,7 @@ class qBittorrentBridge(Star):
         start_wait = time.time()
 
         # 使用 sys.stdout 保持动态刷新效果，不写入日志文件避免刷屏
-        while time.time() - start_wait < 45:
+        while time.time() - start_wait < self.meta_timeout:
             torrents = self.client.torrents_info(torrent_hashes=info_hash)
             if not torrents:
                 time.sleep(1)
