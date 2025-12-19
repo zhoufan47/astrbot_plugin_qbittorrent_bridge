@@ -1,3 +1,5 @@
+import asyncio
+
 from astrbot.api.event import filter, AstrMessageEvent, MessageEventResult
 from astrbot.api.star import Context, Star, register
 from astrbot.api import logger
@@ -71,8 +73,7 @@ class qBittorrentBridge(Star):
         # 2. 添加任务
         logger.info("➕ 正在发送任务到 qBittorrent...")
         self.client.torrents_add(urls=magnet_link, tags=['magnet_tester_script'], save_path=None)
-
-        time.sleep(1)
+        await asyncio.sleep(1)
 
         if self.custom_trackers:
             logger.info(f"📡 注入 {len(self.custom_trackers)} 个自定义 Tracker...")
@@ -81,7 +82,7 @@ class qBittorrentBridge(Star):
         # 4. 等待元数据 (Metadata)
         logger.info("⏳ 正在解析元数据 (等待中)...")
         meta_success = False
-        time.sleep(self.meta_timeout)
+        await asyncio.sleep(self.meta_timeout)
         torrents = self.client.torrents_info(torrent_hashes=info_hash)
         t = torrents[0]
         if t.state != 'metaDL' and t.total_size > 0:
@@ -117,7 +118,7 @@ class qBittorrentBridge(Star):
 
         # 5. 持续下载测试
         logger.info(f"🚀 开始 {self.duration} 秒下载性能测试...")
-        time.sleep(self.duration)
+        await asyncio.sleep(self.duration)
         logger.info("-" * 50)
 
         # 6. 最终报告
@@ -176,6 +177,6 @@ class qBittorrentBridge(Star):
 
 
     async def terminate(self):
-        if self.client and not self.client:
+        if self.client:
             self.client = None
             logger.info("qBittorrent Bridge 插件已卸载，Api Client 客户端已关闭。")
