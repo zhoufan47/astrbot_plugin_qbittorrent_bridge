@@ -4,8 +4,6 @@ from astrbot.api.event import filter, AstrMessageEvent, MessageEventResult
 from astrbot.api.star import Context, Star, register
 from astrbot.api import logger
 import qbittorrentapi
-import time
-import sys
 import re
 
 
@@ -18,7 +16,7 @@ def _extract_hash(magnet_link: str) -> str:
 
 
 @register("qBittorrent Bridge", "棒棒糖", "Build a bridge to your Qbittorrent", "1.0.0")
-class qBittorrentBridge(Star):
+class QBittorrentBridge(Star):
     def __init__(self, context: Context,config: dict):
         super().__init__(context)
         self.client = None
@@ -26,9 +24,9 @@ class qBittorrentBridge(Star):
         self.web_ui_port = config.get("qbittorrent_web_ui_port", "")
         self.web_ui_username = config.get("qbittorrent_web_ui_username", "")
         self.web_ui_password = config.get("qbittorrent_web_ui_password", "")
-        self.duration = config.get("duration",30)
-        self.custom_trackers = config.get("tracker_list",[])
-        self.meta_timeout = config.get("meta_timeout",60)
+        self.duration = config.get("duration", 30)
+        self.custom_trackers = config.get("tracker_list", [])
+        self.meta_timeout = config.get("meta_timeout", 60)
         logger.info("插件 [qBittorrent Bridge] 已初始化。")
 
     async def initialize(self):
@@ -53,7 +51,7 @@ class qBittorrentBridge(Star):
             return
 
         # 得加个查询当前任务存不存在，不然慢点把已经下载完的任务给删了，就尴尬了
-        t_list = self.client.torrents_info(torrent_hashes=info_hash)
+        t_list = await asyncio.to_thread(self.client.torrents_info, torrent_hashes=info_hash)
         if t_list:
             logger.info(f"任务信息已存在，直接返回任务状态")
             t = t_list[0]
@@ -83,12 +81,10 @@ class qBittorrentBridge(Star):
         logger.info("⏳ 正在解析元数据 (等待中)...")
         meta_success = False
         await asyncio.sleep(self.meta_timeout)
-        torrents = self.client.torrents_info(torrent_hashes=info_hash)
+        torrents = await asyncio.to_thread(self.client.torrents_info, torrent_hashes=info_hash)
         t = torrents[0]
         if t.state != 'metaDL' and t.total_size > 0:
             meta_success = True
-
-        sys.stdout.write("\n")  # 换行
 
         if not meta_success:
             logger.error("❌ 元数据获取超时。该资源可能无人做种。")
@@ -98,7 +94,8 @@ class qBittorrentBridge(Star):
             return
 
         # 获取详细信息
-        t = self.client.torrents_info(torrent_hashes=info_hash)[0]
+        t_list = await asyncio.to_thread(self.client.torrents_info, torrent_hashes=info_hash)
+        t = t_list[0]
         first_report = (f"✅ 元数据获取成功！\n"
                         f"📦 资源名称: {t.name}\n"
                         f"💾 总大小: {t.total_size / 1024 / 1024:.2f} MB")
@@ -122,7 +119,7 @@ class qBittorrentBridge(Star):
         logger.info("-" * 50)
 
         # 6. 最终报告
-        t_list = self.client.torrents_info(torrent_hashes=info_hash)
+        t_list = await asyncio.to_thread(self.client.torrents_info, torrent_hashes=info_hash)
         if t_list:
             t = t_list[0]
             availability = t.get('availability', 0)
@@ -162,7 +159,7 @@ class qBittorrentBridge(Star):
 
     @filter.command("maginfo")
     async def mag_info(self, event: AstrMessageEvent,info_hash: str):
-        t_list = self.client.torrents_info(torrent_hashes=info_hash)
+        t_list = await asyncio.to_thread(self.client.torrents_info, torrent_hashes=info_hash)
         if t_list:
             t = t_list[0]
             availability = t.get('availability', 0)
