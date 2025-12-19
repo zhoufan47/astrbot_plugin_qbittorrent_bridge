@@ -16,7 +16,7 @@ def _extract_hash(magnet_link: str) -> str:
 
 
 @register("qBittorrent Bridge", "棒棒糖", "Build a bridge to your Qbittorrent", "1.0.0")
-class MyPlugin(Star):
+class qBittorrentBridge(Star):
     def __init__(self, context: Context,config: dict):
         super().__init__(context)
         self.client = None
