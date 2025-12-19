@@ -89,8 +89,8 @@ class QBittorrentBridge(Star):
         except Exception as e:
             logger.warning(f"qBittorrent添加任务失败: {e}")
             yield event.plain_result(f"qBittorrent添加任务失败: {e})")
-
             return
+
         logger.info("-" * 10)
 
         if self.custom_trackers:
@@ -174,12 +174,17 @@ class QBittorrentBridge(Star):
             return
 
         logger.info("➕ 正在发送任务到 qBittorrent...")
-        await asyncio.to_thread(self.client.torrents_add(urls=magnet_link, tags=['magnet_tester_script'], save_path=None))
-        yield event.plain_result(f"✅ 任务已发送至 qBittorrent，任务hash:{info_hash}。")
-        if self.custom_trackers:
-            logger.info(f"📡 注入 {len(self.custom_trackers)} 个自定义 Tracker...")
-            await asyncio.to_thread(self.client.torrents_add_trackers(torrent_hash=info_hash, urls=self.custom_trackers))
-            await asyncio.to_thread(self.client.torrents_reannounce(torrent_hashes=info_hash))
+        try:
+            await asyncio.to_thread(self.client.torrents_add(urls=magnet_link, tags=['magnet_tester_script'], save_path=None))
+            yield event.plain_result(f"✅ 任务已发送至 qBittorrent，任务hash:{info_hash}。")
+            if self.custom_trackers:
+                logger.info(f"📡 注入 {len(self.custom_trackers)} 个自定义 Tracker...")
+                await asyncio.to_thread(self.client.torrents_add_trackers(torrent_hash=info_hash, urls=self.custom_trackers))
+                await asyncio.to_thread(self.client.torrents_reannounce(torrent_hashes=info_hash))
+        except Exception as e:
+            logger.warning(f"qBittorrent添加任务失败: {e}")
+            yield event.plain_result(f"qBittorrent添加任务失败: {e})")
+        return
 
     @filter.command("maginfo")
     async def mag_info(self, event: AstrMessageEvent,info_hash: str):
