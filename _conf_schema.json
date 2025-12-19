@@ -1,0 +1,27 @@
+{
+    "qbittorrent_web_ui_host": {
+        "description": "qBittorrent webUI IP地址",
+        "type": "string",
+        "default": "127.0.0.1"
+    },
+    "qbittorrent_web_ui_port": {
+        "description": "qBittorrent webUI端口",
+        "type": "string",
+        "default": "8080"
+    },
+    "qbittorrent_web_ui_username": {
+        "description": "qBittorrent webUI用户名",
+        "type": "string",
+        "default": "admin"
+    },
+    "qbittorrent_web_ui_password": {
+        "description": "qBittorrent webUI密码",
+        "type": "string",
+        "default": "admin"
+    },
+    "duration": {
+        "description": "测试时间",
+        "type": "int",
+        "default": 60
+    }
+}
