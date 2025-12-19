@@ -105,7 +105,7 @@ class QBittorrentBridge(Star):
                 await asyncio.to_thread(self.client.torrents_reannounce, torrent_hashes=info_hash)
             except Exception as e:
                 logger.warning(f"qBittorrent 注入Tracker异常: {e}")
-                yield event.plain_result(f"qBittorrent 注入Tracker异常: {e}")
+                yield event.plain_result(f"qBittorrent 注入Tracker异常，使用默认Tracker继续下载: {e}")
         # 4. 等待元数据 (Metadata)
         logger.info("⏳ 正在解析元数据 (等待中)...")
 
@@ -126,8 +126,7 @@ class QBittorrentBridge(Star):
         if not meta_success:
             logger.error("❌ 元数据获取超时。该资源可能无人做种。")
             yield event.plain_result("❌ 元数据获取超时。该资源可能无人做种。")
-            logger.info("🧹 清理任务中...")
-            await asyncio.to_thread(self.client.torrents_delete, torrent_hashes=info_hash, delete_files=True)
+            await self.clean_task(info_hash)
             return
 
         # 获取详细信息
@@ -173,11 +172,15 @@ class QBittorrentBridge(Star):
         return final_report
 
     async def clean_task(self, info_hash: str):
-        # 7. 清理
-        logger.info("-" * 10)
-        logger.info("🧹 清理中：删除测试任务及下载文件...")
-        await asyncio.to_thread(self.client.torrents_delete, torrent_hashes=info_hash, delete_files=True)
-        logger.info("✅ 测试结束，清理完成。")
+        try:
+            logger.info("-" * 10)
+            logger.info("🧹 清理中：删除测试任务及下载文件...")
+            await asyncio.to_thread(self.client.torrents_delete, torrent_hashes=info_hash, delete_files=True)
+            logger.info("✅ 测试结束，清理完成。")
+        except Exception as e:
+            #如果清理失败，只记录错误日志。一般情况不会发生。
+            logger.error(f"❌ 清理任务失败,{e}。")
+
 
     async def query_meta_result(self, info_hash: str) -> tuple[bool, Any]:
         meta_success = False
