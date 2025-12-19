@@ -104,6 +104,7 @@ class QBittorrentBridge(Star):
         try:
             logger.info("➕ 正在发送任务到 qBittorrent...")
             await asyncio.to_thread(self.client.torrents_add, urls=magnet_link, tags=['magnet_tester_script'], save_path=self.test_path)
+            # 休眠1秒，等待服务器准备好下一步添加Tracker，理论上1秒时间足够服务器生成BT任务
             await asyncio.sleep(1)
         except Exception as e:
             logger.warning(f"qBittorrent添加任务失败: {e}")
