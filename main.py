@@ -38,7 +38,6 @@ class QBittorrentBridge(Star):
                                                 port=self.web_ui_port,
                                                 username=self.web_ui_username,
                                                 password=self.web_ui_password)
-            self.client.auth_log_in()
             logger.info(f"✅ 成功连接到 qBittorrent (v{self.client.app.version})")
             logger.info(f"   API 版本: {self.client.app.web_api_version}")
         except Exception as e:
@@ -52,7 +51,6 @@ class QBittorrentBridge(Star):
                                             port=self.web_ui_port,
                                             username=self.web_ui_username,
                                             password=self.web_ui_password)
-        self.client.auth_log_in()
         logger.info(f"✅ 成功连接到 qBittorrent (v{self.client.app.version})")
         logger.info(f"   API 版本: {self.client.app.web_api_version}")
         yield event.plain_result(f"✅ 成功连接到 qBittorrent (v{self.client.app.version})")
