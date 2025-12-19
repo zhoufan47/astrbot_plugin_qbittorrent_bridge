@@ -25,6 +25,7 @@ class qBittorrentBridge(Star):
         self.web_ui_username = config.get("qbittorrent_web_ui_username", "")
         self.web_ui_password = config.get("qbittorrent_web_ui_password", "")
         self.duration = config.get("duration",30)
+        self.custom_trackers = config.get("tracker_list",[])
         logger.info("插件 [qBittorrent Bridge] 已初始化。")
 
     async def initialize(self):
@@ -49,6 +50,7 @@ class qBittorrentBridge(Star):
             return
 
         logger.info(f"🔍 开始测试，目标 Hash: {info_hash}")
+        yield event.plain_result(f"🔍 开始测试，目标 Hash: {info_hash}")
 
         # 2. 添加任务
         logger.info("➕ 正在发送任务到 qBittorrent...")
@@ -56,6 +58,10 @@ class qBittorrentBridge(Star):
 
         time.sleep(1)
 
+        if self.custom_trackers:
+            logger.info(f"📡 注入 {len(self.custom_trackers)} 个自定义 Tracker...")
+            self.client.torrents_add_trackers(torrent_hash=info_hash, urls=self.custom_trackers)
+            self.client.torrents_reannounce(torrent_hashes=info_hash)
         # 4. 等待元数据 (Metadata)
         logger.info("⏳ 正在解析元数据 (等待中)...")
         meta_success = False
@@ -83,6 +89,7 @@ class qBittorrentBridge(Star):
 
         if not meta_success:
             logger.error("❌ 元数据获取超时。该资源可能无人做种 (Dead Torrent)。")
+            yield event.plain_result("❌ 元数据获取超时。该资源可能无人做种 (Dead Torrent)。")
             logger.info("🧹 清理任务中...")
             self.client.torrents_delete(torrent_hashes=info_hash, delete_files=True)
             return
@@ -94,6 +101,7 @@ class qBittorrentBridge(Star):
                         f"💾 总大小: {t.total_size / 1024 / 1024:.2f} MB")
         logger.info("-" * 10)
         logger.info(first_report)
+        yield event.plain_result(first_report)
 
         # 获取文件列表
         try:
@@ -164,9 +172,13 @@ class qBittorrentBridge(Star):
         logger.info("➕ 正在发送任务到 qBittorrent...")
         self.client.torrents_add(urls=magnet_link, tags=['magnet_tester_script'], save_path=None)
         yield event.plain_result(f"✅ 任务已发送至 qBittorrent，任务hash:{info_hash}。")
+        if self.custom_trackers:
+            logger.info(f"📡 注入 {len(self.custom_trackers)} 个自定义 Tracker...")
+            self.client.torrents_add_trackers(torrent_hash=info_hash, urls=self.custom_trackers)
+            self.client.torrents_reannounce(torrent_hashes=info_hash)
 
     @filter.command("maginfo")
-    async def mag_add(self, event: AstrMessageEvent,info_hash: str):
+    async def mag_info(self, event: AstrMessageEvent,info_hash: str):
         t_list = self.client.torrents_info(torrent_hashes=info_hash)
         if t_list:
             t = t_list[0]
