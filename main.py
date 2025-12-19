@@ -152,11 +152,11 @@ class QBittorrentBridge(Star):
                             f"🌱 做种人数: {t.num_seeds} (已连接) / {t.num_complete} (全网发现)\n"
                             f"👥 下载人数: {t.num_leechs} (已连接) / {t.num_incomplete} (全网发现)\n"
                             f"⬇️ 最终下载速度: {t.dlspeed / 1024:.2f} KB/s\n"
-                            f"📥 一分钟实际下载量: {t.downloaded / 1024 / 1024:.2f} MB\n")
+                            f"📥 {self.duration} 秒实际下载量: {t.downloaded / 1024 / 1024:.2f} MB\n")
             if availability < 1.0:
-                final_report = final_report + " ⚠️ 警告：健康度小于 1.0，说明全网可能没有完整资源。\n"
+                final_report = final_report + "⚠️ 警告：健康度小于 1.0，说明全网可能没有完整资源。\n"
             else:
-                final_report = final_report + " ✅ 资源健康，理论上可完整下载。\n"
+                final_report = final_report + "✅ 资源健康，理论上可完整下载。\n"
             yield event.plain_result(final_report)
 
         # 7. 清理
