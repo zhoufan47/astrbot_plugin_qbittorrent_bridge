@@ -1,4 +1,5 @@
 import asyncio
+import time
 from typing import Optional
 
 from astrbot.api.event import filter, AstrMessageEvent, MessageEventResult
@@ -107,15 +108,37 @@ class QBittorrentBridge(Star):
                 yield event.plain_result(f"qBittorrent 注入Tracker异常: {e}")
         # 4. 等待元数据 (Metadata)
         logger.info("⏳ 正在解析元数据 (等待中)...")
+
         meta_success = False
-        await asyncio.sleep(self.meta_timeout)
-        torrents = await asyncio.to_thread(self.client.torrents_info, torrent_hashes=info_hash)
-        if torrents:
-            torrent = torrents[0]
-            if torrent.state != 'metaDL' and torrent.total_size > 0:
-                meta_success = True
+        start_time = time.time()
+        poll_interval = 2  # 设置轮询间隔，例如每 2 秒检查一次
+        torrents = []  # 初始化变量，防止循环未执行导致变量未定义
+
+        # 循环轮询逻辑
+        while time.time() - start_time < self.meta_timeout:
+            # 获取任务信息
+            torrents = await asyncio.to_thread(self.client.torrents_info, torrent_hashes=info_hash)
+
+            if torrents:
+                torrent = torrents[0]
+                # 检查是否解析完成 (状态不再是 metaDL 且 获取到了文件大小)
+                if torrent.state != 'metaDL' and torrent.total_size > 0:
+                    meta_success = True
+                    logger.info(f"✅ 元数据解析成功: {torrent.name}")
+                    break  # 成功获取，立即跳出循环，不再等待
+            await asyncio.sleep(poll_interval)
+
+        # 循环结束后的判断逻辑
+        if meta_success:
+            # 这里放置解析成功后的后续处理逻辑
+            pass
         else:
-            yield event.plain_result("未能获取到任务信息，任务可能添加失败")
+            # 处理失败情况
+            if not torrents:
+                yield event.plain_result("未能获取到任务信息，任务可能添加失败")
+            else:
+                # 虽然获取到了任务，但在超时时间内元数据仍未就绪
+                yield event.plain_result(f"元数据解析超时 ({self.meta_timeout}s)")
 
         if not meta_success:
             logger.error("❌ 元数据获取超时。该资源可能无人做种。")
