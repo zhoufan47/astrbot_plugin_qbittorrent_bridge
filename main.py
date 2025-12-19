@@ -1,6 +1,6 @@
 import asyncio
 import time
-from typing import Optional
+from typing import Optional, Any
 
 from astrbot.api.event import filter, AstrMessageEvent, MessageEventResult
 from astrbot.api.star import Context, Star, register
@@ -109,24 +109,7 @@ class QBittorrentBridge(Star):
         # 4. 等待元数据 (Metadata)
         logger.info("⏳ 正在解析元数据 (等待中)...")
 
-        meta_success = False
-        start_time = time.time()
-        poll_interval = 2  # 设置轮询间隔，例如每 2 秒检查一次
-        torrents = []  # 初始化变量，防止循环未执行导致变量未定义
-
-        # 循环轮询逻辑
-        while time.time() - start_time < self.meta_timeout:
-            # 获取任务信息
-            torrents = await asyncio.to_thread(self.client.torrents_info, torrent_hashes=info_hash)
-
-            if torrents:
-                torrent = torrents[0]
-                # 检查是否解析完成 (状态不再是 metaDL 且 获取到了文件大小)
-                if torrent.state != 'metaDL' and torrent.total_size > 0:
-                    meta_success = True
-                    logger.info(f"✅ 元数据解析成功: {torrent.name}")
-                    break  # 成功获取，立即跳出循环，不再等待
-            await asyncio.sleep(poll_interval)
+        meta_success, torrents = await self.query_meta_result(info_hash)
 
         # 循环结束后的判断逻辑
         if meta_success:
@@ -160,15 +143,6 @@ class QBittorrentBridge(Star):
         else:
             yield event.plain_result("未能获取到任务信息，任务可能添加失败")
 
-        # 获取文件列表
-        try:
-            files = await asyncio.to_thread(self.client.torrents_files, torrent_hash=info_hash)
-            logger.info(f"📄 文件列表 (前 5 个 / 共 {len(files)} 个):")
-            for file_object in files[:5]:
-                logger.info(f"   - {file_object.name} ({file_object.size / 1024 / 1024:.2f} MB)")
-        except Exception as e:
-            logger.warning(f"   (文件列表获取失败: {e})")
-        logger.info("-" * 10)
 
         # 5. 持续下载测试
         logger.info(f"🚀 开始 {self.duration} 秒下载性能测试...")
@@ -179,24 +153,52 @@ class QBittorrentBridge(Star):
         t_list = await asyncio.to_thread(self.client.torrents_info, torrent_hashes=info_hash)
         if t_list:
             torrent = t_list[0]
-            availability = torrent.get('availability', 0)
-            final_report = (f"🏁 [{self.duration} 秒测试报告]\n"
-                            f"📊 健康度: {availability:.2f}\n"
-                            f"🌱 做种人数: {torrent.num_seeds} (已连接) / {torrent.num_complete} (全网发现)\n"
-                            f"👥 下载人数: {torrent.num_leechs} (已连接) / {torrent.num_incomplete} (全网发现)\n"
-                            f"⬇️ 最终下载速度: {torrent.dlspeed / 1024:.2f} KB/s\n"
-                            f"📥 {self.duration} 秒实际下载量: {torrent.downloaded / 1024 / 1024:.2f} MB\n")
-            if availability < 1.0:
-                final_report = final_report + "⚠️ 警告：健康度小于 1.0，说明全网可能没有完整资源。\n"
-            else:
-                final_report = final_report + "✅ 资源健康，理论上可完整下载。\n"
+            final_report = await self.get_final_report(torrent)
             yield event.plain_result(final_report)
 
+        await self.clean_task(info_hash)
+
+    async def get_final_report(self, torrent) -> str:
+        availability = torrent.get('availability', 0)
+        final_report = (f"🏁 [{self.duration} 秒测试报告]\n"
+                        f"📊 健康度: {availability:.2f}\n"
+                        f"🌱 做种人数: {torrent.num_seeds} (已连接) / {torrent.num_complete} (全网发现)\n"
+                        f"👥 下载人数: {torrent.num_leechs} (已连接) / {torrent.num_incomplete} (全网发现)\n"
+                        f"⬇️ 最终下载速度: {torrent.dlspeed / 1024:.2f} KB/s\n"
+                        f"📥 {self.duration} 秒实际下载量: {torrent.downloaded / 1024 / 1024:.2f} MB\n")
+        if availability < 1.0:
+            final_report = final_report + "⚠️ 警告：健康度小于 1.0，说明全网可能没有完整资源。\n"
+        else:
+            final_report = final_report + "✅ 资源健康，理论上可完整下载。\n"
+        return final_report
+
+    async def clean_task(self, info_hash: str):
         # 7. 清理
         logger.info("-" * 10)
         logger.info("🧹 清理中：删除测试任务及下载文件...")
         await asyncio.to_thread(self.client.torrents_delete, torrent_hashes=info_hash, delete_files=True)
         logger.info("✅ 测试结束，清理完成。")
+
+    async def query_meta_result(self, info_hash: str) -> tuple[bool, Any]:
+        meta_success = False
+        start_time = time.time()
+        poll_interval = 2  # 设置轮询间隔，例如每 2 秒检查一次
+        torrents = []  # 初始化变量，防止循环未执行导致变量未定义
+
+        # 循环轮询逻辑
+        while time.time() - start_time < self.meta_timeout:
+            # 获取任务信息
+            torrents = await asyncio.to_thread(self.client.torrents_info, torrent_hashes=info_hash)
+
+            if torrents:
+                torrent = torrents[0]
+                # 检查是否解析完成 (状态不再是 metaDL 且 获取到了文件大小)
+                if torrent.state != 'metaDL' and torrent.total_size > 0:
+                    meta_success = True
+                    logger.info(f"✅ 元数据解析成功: {torrent.name}")
+                    break  # 成功获取，立即跳出循环，不再等待
+            await asyncio.sleep(poll_interval)
+        return meta_success, torrents
 
     @filter.command("magadd")
     async def mag_add(self, event: AstrMessageEvent, magnet_link: str):
