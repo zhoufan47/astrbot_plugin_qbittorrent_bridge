@@ -50,6 +50,21 @@ class qBittorrentBridge(Star):
             yield event.plain_result("❌ 无效的磁力链接，无法提取 Hash。")
             return
 
+        # 得加个查询当前任务存不存在，不然慢点把已经下载完的任务给删了，就尴尬了
+        t_list = self.client.torrents_info(torrent_hashes=info_hash)
+        if t_list:
+            logger.info(f"任务信息已存在，直接返回任务状态")
+            t = t_list[0]
+            availability = t.get('availability', 0)
+            final_report = (f"🏁 [任务已存在，当前状态]:{t.state}\n"
+                            f"📊 健康度: {availability:.2f}\n"
+                            f"🌱 做种人数 (Seeds): {t.num_seeds} (已连接) / {t.num_complete} (全网发现)\n"
+                            f"👥 下载人数 (Leechers): {t.num_leechs} (已连接) / {t.num_incomplete} (全网发现)\n"
+                            f"⬇️ 下载速度: {t.dlspeed / 1024:.2f} KB/s")
+            yield event.plain_result(final_report)
+            return
+
+
         logger.info(f"🔍 开始测试，目标 Hash: {info_hash}")
         yield event.plain_result(f"🔍 开始测试，目标 Hash: {info_hash}")
 
@@ -66,25 +81,11 @@ class qBittorrentBridge(Star):
         # 4. 等待元数据 (Metadata)
         logger.info("⏳ 正在解析元数据 (等待中)...")
         meta_success = False
-        start_wait = time.time()
-
-        # 使用 sys.stdout 保持动态刷新效果，不写入日志文件避免刷屏
-        while time.time() - start_wait < self.meta_timeout:
-            torrents = self.client.torrents_info(torrent_hashes=info_hash)
-            if not torrents:
-                time.sleep(1)
-                continue
-
-            t = torrents[0]
-            if t.state != 'metaDL' and t.total_size > 0:
-                meta_success = True
-                break
-
-            # 动态显示进度（仅控制台可见）
-            sys.stdout.write(
-                f"\r   [Metadata] 耗时: {int(time.time() - start_wait)}s | 状态: {t.state} | Peers: {t.num_leechs} | Seeds: {t.num_seeds}")
-            sys.stdout.flush()
-            time.sleep(1)
+        time.sleep(self.meta_timeout)
+        torrents = self.client.torrents_info(torrent_hashes=info_hash)
+        t = torrents[0]
+        if t.state != 'metaDL' and t.total_size > 0:
+            meta_success = True
 
         sys.stdout.write("\n")  # 换行
 
