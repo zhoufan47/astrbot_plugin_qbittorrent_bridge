@@ -28,6 +28,8 @@ class QBittorrentBridge(Star):
         self.duration = config.get("duration", 30)
         self.custom_trackers = config.get("tracker_list", [])
         self.meta_timeout = config.get("meta_timeout", 60)
+        self.test_path = config.get("test_path", None)
+        self.download_path = config.get("download_path",None)
         logger.info("插件 [qBittorrent Bridge] 已初始化。")
 
     async def initialize(self):
@@ -84,7 +86,7 @@ class QBittorrentBridge(Star):
         # 2. 添加任务
         try:
             logger.info("➕ 正在发送任务到 qBittorrent...")
-            await asyncio.to_thread(self.client.torrents_add(urls=magnet_link, tags=['magnet_tester_script'], save_path=None))
+            await asyncio.to_thread(self.client.torrents_add(urls=magnet_link, tags=['magnet_tester_script'], save_path=self.test_path))
             await asyncio.sleep(1)
         except Exception as e:
             logger.warning(f"qBittorrent添加任务失败: {e}")
@@ -175,7 +177,7 @@ class QBittorrentBridge(Star):
 
         logger.info("➕ 正在发送任务到 qBittorrent...")
         try:
-            await asyncio.to_thread(self.client.torrents_add(urls=magnet_link, tags=['magnet_tester_script'], save_path=None))
+            await asyncio.to_thread(self.client.torrents_add(urls=magnet_link, tags=['magnet_tester_script'], save_path=self.download_path))
             yield event.plain_result(f"✅ 任务已发送至 qBittorrent，任务hash:{info_hash}。")
             if self.custom_trackers:
                 logger.info(f"📡 注入 {len(self.custom_trackers)} 个自定义 Tracker...")

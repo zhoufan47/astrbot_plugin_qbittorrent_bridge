@@ -24,13 +24,23 @@
         "type": "int",
         "default": 60
     },
-    "tracker_list": {
-        "description": "自定义tracker",
-        "type": "list"
-    },
     "meta_timeout": {
           "description": "元数据等待时间",
           "type": "int",
           "default": 60
+    },
+  "tracker_list": {
+        "description": "自定义tracker",
+        "type": "list"
+    },
+      "test_path": {
+        "description": "测试目录",
+        "type": "string",
+        "default": null
+    },
+      "download_path": {
+        "description": "下载目录",
+        "type": "string",
+        "default": null
     }
 }
