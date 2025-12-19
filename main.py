@@ -18,7 +18,7 @@ def _extract_hash(magnet_link: str) -> Optional[str]:
 
 @register("qBittorrent Bridge", "棒棒糖", "Build a bridge to your Qbittorrent", "1.0.1")
 class QBittorrentBridge(Star):
-    def __init__(self, context: Context,config: dict):
+    def __init__(self, context: Context, config: dict):
         super().__init__(context)
         self.client = None
         self.web_ui_host = config.get("qbittorrent_web_ui_host", "")
@@ -60,7 +60,7 @@ class QBittorrentBridge(Star):
         yield event.plain_result(f"✅ 成功连接到 qBittorrent (v{version})")
 
     @filter.command("magtest")
-    async def mag_test(self, event: AstrMessageEvent,magnet_link: str):
+    async def mag_test(self, event: AstrMessageEvent, magnet_link: str):
         info_hash = _extract_hash(magnet_link)
         if not info_hash:
             logger.error("❌ 无效的磁力链接，无法提取 Hash。")
@@ -71,13 +71,13 @@ class QBittorrentBridge(Star):
         t_list = await asyncio.to_thread(self.client.torrents_info, torrent_hashes=info_hash)
         if t_list:
             logger.info(f"任务信息已存在，直接返回任务状态")
-            t = t_list[0]
-            availability = t.get('availability', 0)
-            final_report = (f"🏁 任务已存在，当前状态:{t.state}\n"
+            torrent = t_list[0]
+            availability = torrent.get('availability', 0)
+            final_report = (f"🏁 任务已存在，当前状态:{torrent.state}\n"
                             f"📊 健康度: {availability:.2f}\n"
-                            f"🌱 做种人数: {t.num_seeds} (已连接) / {t.num_complete} (全网发现)\n"
-                            f"👥 下载人数: {t.num_leechs} (已连接) / {t.num_incomplete} (全网发现)\n"
-                            f"⬇️ 下载速度: {t.dlspeed / 1024:.2f} KB/s")
+                            f"🌱 做种人数: {torrent.num_seeds} (已连接) / {torrent.num_complete} (全网发现)\n"
+                            f"👥 下载人数: {torrent.num_leechs} (已连接) / {torrent.num_incomplete} (全网发现)\n"
+                            f"⬇️ 下载速度: {torrent.dlspeed / 1024:.2f} KB/s")
             yield event.plain_result(final_report)
             return
 
@@ -110,9 +110,12 @@ class QBittorrentBridge(Star):
         meta_success = False
         await asyncio.sleep(self.meta_timeout)
         torrents = await asyncio.to_thread(self.client.torrents_info, torrent_hashes=info_hash)
-        t = torrents[0]
-        if t.state != 'metaDL' and t.total_size > 0:
-            meta_success = True
+        if torrents:
+            torrent = torrents[0]
+            if torrent.state != 'metaDL' and torrent.total_size > 0:
+                meta_success = True
+        else:
+            yield event.plain_result("未能获取到任务信息，任务可能添加失败")
 
         if not meta_success:
             logger.error("❌ 元数据获取超时。该资源可能无人做种。")
@@ -124,10 +127,10 @@ class QBittorrentBridge(Star):
         # 获取详细信息
         t_list = await asyncio.to_thread(self.client.torrents_info, torrent_hashes=info_hash)
         if t_list:
-            t = t_list[0]
+            torrent = t_list[0]
             first_report = (f"✅ 元数据获取成功！\n"
-                            f"📦 资源名称: {t.name}\n"
-                            f"💾 总大小: {t.total_size / 1024 / 1024:.2f} MB")
+                            f"📦 资源名称: {torrent.name}\n"
+                            f"💾 总大小: {torrent.total_size / 1024 / 1024:.2f} MB")
             logger.info("-" * 10)
             logger.info(first_report)
             yield event.plain_result(first_report)
@@ -138,8 +141,8 @@ class QBittorrentBridge(Star):
         try:
             files = await asyncio.to_thread(self.client.torrents_files, torrent_hash=info_hash)
             logger.info(f"📄 文件列表 (前 5 个 / 共 {len(files)} 个):")
-            for f in files[:5]:
-                logger.info(f"   - {f.name} ({f.size / 1024 / 1024:.2f} MB)")
+            for file_object in files[:5]:
+                logger.info(f"   - {file_object.name} ({file_object.size / 1024 / 1024:.2f} MB)")
         except Exception as e:
             logger.warning(f"   (文件列表获取失败: {e})")
         logger.info("-" * 10)
@@ -152,14 +155,14 @@ class QBittorrentBridge(Star):
         # 6. 最终报告
         t_list = await asyncio.to_thread(self.client.torrents_info, torrent_hashes=info_hash)
         if t_list:
-            t = t_list[0]
-            availability = t.get('availability', 0)
+            torrent = t_list[0]
+            availability = torrent.get('availability', 0)
             final_report = (f"🏁 [{self.duration} 秒测试报告]\n"
                             f"📊 健康度: {availability:.2f}\n"
-                            f"🌱 做种人数: {t.num_seeds} (已连接) / {t.num_complete} (全网发现)\n"
-                            f"👥 下载人数: {t.num_leechs} (已连接) / {t.num_incomplete} (全网发现)\n"
-                            f"⬇️ 最终下载速度: {t.dlspeed / 1024:.2f} KB/s\n"
-                            f"📥 {self.duration} 秒实际下载量: {t.downloaded / 1024 / 1024:.2f} MB\n")
+                            f"🌱 做种人数: {torrent.num_seeds} (已连接) / {torrent.num_complete} (全网发现)\n"
+                            f"👥 下载人数: {torrent.num_leechs} (已连接) / {torrent.num_incomplete} (全网发现)\n"
+                            f"⬇️ 最终下载速度: {torrent.dlspeed / 1024:.2f} KB/s\n"
+                            f"📥 {self.duration} 秒实际下载量: {torrent.downloaded / 1024 / 1024:.2f} MB\n")
             if availability < 1.0:
                 final_report = final_report + "⚠️ 警告：健康度小于 1.0，说明全网可能没有完整资源。\n"
             else:
@@ -195,16 +198,16 @@ class QBittorrentBridge(Star):
         return
 
     @filter.command("maginfo")
-    async def mag_info(self, event: AstrMessageEvent,info_hash: str):
-        t_list = await asyncio.to_thread(self.client.torrents_info, torrent_hashes=info_hash)
-        if t_list:
-            t = t_list[0]
-            availability = t.get('availability', 0)
-            final_report = (f"🏁 [当前任务状态]:{t.state}\n"
+    async def mag_info(self, event: AstrMessageEvent, info_hash: str):
+        torrent_list = await asyncio.to_thread(self.client.torrents_info, torrent_hashes=info_hash)
+        if torrent_list:
+            torrent = torrent_list[0]
+            availability = torrent.get('availability', 0)
+            final_report = (f"🏁 [当前任务状态]:{torrent.state}\n"
                             f"📊 健康度: {availability:.2f}\n"
-                            f"🌱 做种人数 (Seeds): {t.num_seeds} (已连接) / {t.num_complete} (全网发现)\n"
-                            f"👥 下载人数 (Leechers): {t.num_leechs} (已连接) / {t.num_incomplete} (全网发现)\n"
-                            f"⬇️ 下载速度: {t.dlspeed / 1024:.2f} KB/s")
+                            f"🌱 做种人数 (Seeds): {torrent.num_seeds} (已连接) / {torrent.num_complete} (全网发现)\n"
+                            f"👥 下载人数 (Leechers): {torrent.num_leechs} (已连接) / {torrent.num_incomplete} (全网发现)\n"
+                            f"⬇️ 下载速度: {torrent.dlspeed / 1024:.2f} KB/s")
             yield event.plain_result(final_report)
         else:
             yield event.plain_result(f"没有找到任务:{info_hash}")
