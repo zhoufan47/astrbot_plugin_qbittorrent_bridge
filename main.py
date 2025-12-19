@@ -113,17 +113,13 @@ class QBittorrentBridge(Star):
 
         # 循环结束后的判断逻辑
         if meta_success:
-            # 这里放置解析成功后的后续处理逻辑
-            pass
-        else:
             # 处理失败情况
             if not torrents:
                 yield event.plain_result("未能获取到任务信息，任务可能添加失败")
             else:
                 # 虽然获取到了任务，但在超时时间内元数据仍未就绪
                 yield event.plain_result(f"元数据解析超时 ({self.meta_timeout}s)")
-
-        if not meta_success:
+        else:
             logger.error("❌ 元数据获取超时。该资源可能无人做种。")
             yield event.plain_result("❌ 元数据获取超时。该资源可能无人做种。")
             await self.clean_task(info_hash)
@@ -222,7 +218,7 @@ class QBittorrentBridge(Star):
                 await asyncio.to_thread(self.client.torrents_reannounce, torrent_hashes=info_hash)
         except Exception as e:
             logger.warning(f"qBittorrent添加任务失败: {e}")
-            yield event.plain_result(f"qBittorrent添加任务失败: {e})")
+            yield event.plain_result(f"qBittorrent添加任务失败: {e}")
         return
 
     @filter.command("maginfo")
