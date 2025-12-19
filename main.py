@@ -42,7 +42,7 @@ class qBittorrentBridge(Star):
 
     @filter.command("magtest")
     async def mag_test(self, event: AstrMessageEvent,magnet_link: str):
-        info_hash = self._extract_hash(magnet_link)
+        info_hash = _extract_hash(magnet_link)
         if not info_hash:
             logger.error("❌ 无效的磁力链接，无法提取 Hash。")
             yield event.plain_result("❌ 无效的磁力链接，无法提取 Hash。")
@@ -155,7 +155,7 @@ class qBittorrentBridge(Star):
 
     @filter.command("magadd")
     async def mag_add(self, event: AstrMessageEvent,magnet_link: str):
-        info_hash = self._extract_hash(magnet_link)
+        info_hash = _extract_hash(magnet_link)
         if not info_hash:
             logger.error("❌ 无效的磁力链接，无法提取 Hash。")
             yield event.plain_result("❌ 无效的磁力链接，无法提取 Hash。")
