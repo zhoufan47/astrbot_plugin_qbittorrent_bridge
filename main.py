@@ -84,7 +84,7 @@ class QBittorrentBridge(Star):
         # 2. 添加任务
         try:
             logger.info("➕ 正在发送任务到 qBittorrent...")
-            await asyncio.to_thread(self.client.torrents_add(urls=magnet_link, tags=['magnet_tester_script'], save_path=self.test_path))
+            await asyncio.to_thread(self.client.torrents_add, urls=magnet_link, tags=['magnet_tester_script'], save_path=self.test_path)
             await asyncio.sleep(1)
         except Exception as e:
             logger.warning(f"qBittorrent添加任务失败: {e}")
@@ -96,8 +96,8 @@ class QBittorrentBridge(Star):
         if self.custom_trackers:
             try:
                 logger.info(f"📡 注入 {len(self.custom_trackers)} 个自定义 Tracker...")
-                await asyncio.to_thread(self.client.torrents_add_trackers(torrent_hash=info_hash, urls=self.custom_trackers))
-                await asyncio.to_thread(self.client.torrents_reannounce(torrent_hashes=info_hash))
+                await asyncio.to_thread(self.client.torrents_add_trackers, torrent_hash=info_hash, urls=self.custom_trackers)
+                await asyncio.to_thread(self.client.torrents_reannounce, torrent_hashes=info_hash)
             except Exception as e:
                 logger.warning(f"qBittorrent 注入Tracker异常: {e}")
                 yield event.plain_result(f"qBittorrent 注入Tracker异常: {e}")
@@ -114,7 +114,7 @@ class QBittorrentBridge(Star):
             logger.error("❌ 元数据获取超时。该资源可能无人做种。")
             yield event.plain_result("❌ 元数据获取超时。该资源可能无人做种。")
             logger.info("🧹 清理任务中...")
-            await asyncio.to_thread(self.client.torrents_delete(torrent_hashes=info_hash, delete_files=True))
+            await asyncio.to_thread(self.client.torrents_delete, torrent_hashes=info_hash, delete_files=True)
             return
 
         # 获取详细信息
@@ -129,7 +129,7 @@ class QBittorrentBridge(Star):
 
         # 获取文件列表
         try:
-            files = await asyncio.to_thread(self.client.torrents_files(torrent_hash=info_hash))
+            files = await asyncio.to_thread(self.client.torrents_files, torrent_hash=info_hash)
             logger.info(f"📄 文件列表 (前 5 个 / 共 {len(files)} 个):")
             for f in files[:5]:
                 logger.info(f"   - {f.name} ({f.size / 1024 / 1024:.2f} MB)")
@@ -162,7 +162,7 @@ class QBittorrentBridge(Star):
         # 7. 清理
         logger.info("-" * 10)
         logger.info("🧹 清理中：删除测试任务及下载文件...")
-        await asyncio.to_thread(self.client.torrents_delete(torrent_hashes=info_hash, delete_files=True))
+        await asyncio.to_thread(self.client.torrents_delete, torrent_hashes=info_hash, delete_files=True)
         logger.info("✅ 测试结束，清理完成。")
 
     @filter.command("magadd")
@@ -179,8 +179,8 @@ class QBittorrentBridge(Star):
             yield event.plain_result(f"✅ 任务已发送至 qBittorrent，任务hash:{info_hash}。")
             if self.custom_trackers:
                 logger.info(f"📡 注入 {len(self.custom_trackers)} 个自定义 Tracker...")
-                await asyncio.to_thread(self.client.torrents_add_trackers(torrent_hash=info_hash, urls=self.custom_trackers))
-                await asyncio.to_thread(self.client.torrents_reannounce(torrent_hashes=info_hash))
+                await asyncio.to_thread(self.client.torrents_add_trackers, torrent_hash=info_hash, urls=self.custom_trackers)
+                await asyncio.to_thread(self.client.torrents_reannounce, torrent_hashes=info_hash)
         except Exception as e:
             logger.warning(f"qBittorrent添加任务失败: {e}")
             yield event.plain_result(f"qBittorrent添加任务失败: {e})")
