@@ -1,5 +1,4 @@
-# AstrBot Plugin: qBittorrent Bridge
-
+# <div align="center">AstrBot Plugin: qBittorrent Bridge</div>
 <div align="center">
 
 ![AstrBot](https://img.shields.io/badge/AstrBot-Plugin-violet)

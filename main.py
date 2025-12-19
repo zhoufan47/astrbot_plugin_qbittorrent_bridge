@@ -16,7 +16,7 @@ def _extract_hash(magnet_link: str) -> Optional[str]:
     return None
 
 
-@register("qBittorrent Bridge", "棒棒糖", "Build a bridge to your Qbittorrent", "1.0.0")
+@register("qBittorrent Bridge", "棒棒糖", "Build a bridge to your Qbittorrent", "1.0.1")
 class QBittorrentBridge(Star):
     def __init__(self, context: Context,config: dict):
         super().__init__(context)

@@ -1,6 +1,6 @@
 name: astrbot_plugin_qbittorrent_bridge
 display_name: qBittorrent 桥接器
 desc: qBittorrent 桥接器 # 插件简短描述
-version: v1.0.0 # 插件版本号。格式：v1.1.1 或者 v1.1
+version: v1.0.1 # 插件版本号。格式：v1.1.1 或者 v1.1
 author: 棒棒糖 # 作者
 repo: https://github.com/zhoufan47/astrbot_plugin_qbittorrent_bridge
