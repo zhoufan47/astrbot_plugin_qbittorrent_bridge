@@ -45,23 +45,37 @@ class QBittorrentBridge(Star):
             logger.info(f"   API 版本: {api_version}")
         except Exception as e:
             logger.error(f"❌ 连接 qBittorrent 失败: {e}")
-            logger.error("   请检查：1. qBittorrent 是否已启动？ 2. Web UI 是否已开启？ 3. 端口/账号/密码是否正确？")
+            logger.error("请检查：\n"
+                         "1. qBittorrent 是否已启动？\n"
+                         "2. Web UI 是否已开启？\n"
+                         "3. 端口/账号/密码是否正确？")
 
     @filter.command("qblogin")
     async def qb_login(self, event: AstrMessageEvent):
-        yield event.plain_result("开始重新登陆qBittorrent API")
-        self.client = qbittorrentapi.Client(host=self.web_ui_host,
-                                            port=self.web_ui_port,
-                                            username=self.web_ui_username,
-                                            password=self.web_ui_password)
-        version = await asyncio.to_thread(lambda: self.client.app.version)
-        logger.info(f"✅ 成功连接到 qBittorrent (v{version})")
-        api_version = await asyncio.to_thread(lambda: self.client.app.web_api_version)
-        logger.info(f"   API 版本: {api_version}")
-        yield event.plain_result(f"✅ 成功连接到 qBittorrent (v{version})")
+        try:
+            yield event.plain_result("开始重新登陆qBittorrent API")
+            self.client = qbittorrentapi.Client(host=self.web_ui_host,
+                                                port=self.web_ui_port,
+                                                username=self.web_ui_username,
+                                                password=self.web_ui_password)
+            version = await asyncio.to_thread(lambda: self.client.app.version)
+            logger.info(f"✅ 成功连接到 qBittorrent (v{version})")
+            api_version = await asyncio.to_thread(lambda: self.client.app.web_api_version)
+            logger.info(f"   API 版本: {api_version}")
+            yield event.plain_result(f"✅ 成功连接到 qBittorrent (v{version})")
+        except Exception as e:
+            logger.error(f"❌ 连接 qBittorrent 失败: {e}")
+            yield event.plain_result("❌ 连接 qBittorrent 失败。\n"
+                                     "请检查：\n"
+                         "1. qBittorrent 是否已启动？\n"
+                         "2. Web UI 是否已开启？\n"
+                         "3. 端口/账号/密码是否正确？")
 
     @filter.command("magtest")
     async def mag_test(self, event: AstrMessageEvent, magnet_link: str):
+        if not self.client:
+            logger.info("qBittorrent web api客户端未创建，尝试重新登陆")
+            asyncio.create_task(self.initialize())
         info_hash = _extract_hash(magnet_link)
         if not info_hash:
             logger.error("❌ 无效的磁力链接，无法提取 Hash。")
@@ -93,7 +107,7 @@ class QBittorrentBridge(Star):
             await asyncio.sleep(1)
         except Exception as e:
             logger.warning(f"qBittorrent添加任务失败: {e}")
-            yield event.plain_result(f"qBittorrent添加任务失败: {e})")
+            yield event.plain_result(f"qBittorrent添加任务失败: {e}")
             return
 
         logger.info("-" * 10)
@@ -202,7 +216,9 @@ class QBittorrentBridge(Star):
             logger.error("❌ 无效的磁力链接，无法提取 Hash。")
             yield event.plain_result("❌ 无效的磁力链接，无法提取 Hash。")
             return
-
+        if not self.client:
+            logger.info("qBittorrent web api客户端未创建，尝试重新登陆")
+            asyncio.create_task(self.initialize())
         logger.info("➕ 正在发送任务到 qBittorrent...")
         try:
             await asyncio.to_thread(self.client.torrents_add, urls=magnet_link, tags=['magnet_tester_script'],
@@ -219,6 +235,9 @@ class QBittorrentBridge(Star):
 
     @filter.command("maginfo")
     async def mag_info(self, event: AstrMessageEvent, info_hash: str):
+        if not self.client:
+            logger.info("qBittorrent web api客户端未创建，尝试重新登陆")
+            asyncio.create_task(self.initialize())
         torrent_list = await asyncio.to_thread(self.client.torrents_info, torrent_hashes=info_hash)
         if torrent_list:
             torrent = torrent_list[0]
