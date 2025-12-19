@@ -29,7 +29,7 @@ class QBittorrentBridge(Star):
         self.custom_trackers = config.get("tracker_list", [])
         self.meta_timeout = config.get("meta_timeout", 60)
         self.test_path = config.get("test_path", None)
-        self.download_path = config.get("download_path",None)
+        self.download_path = config.get("download_path", None)
         logger.info("插件 [qBittorrent Bridge] 已初始化。")
 
     async def initialize(self):
@@ -38,8 +38,10 @@ class QBittorrentBridge(Star):
                                                 port=self.web_ui_port,
                                                 username=self.web_ui_username,
                                                 password=self.web_ui_password)
-            logger.info(f"✅ 成功连接到 qBittorrent (v{self.client.app.version})")
-            logger.info(f"   API 版本: {self.client.app.web_api_version}")
+            version = asyncio.to_thread(lambda: self.client.app.version)
+            logger.info(f"✅ 成功连接到 qBittorrent (v{version})")
+            api_version =  asyncio.to_thread(lambda: self.client.app.web_api_version)
+            logger.info(f"   API 版本: {api_version}")
         except Exception as e:
             logger.error(f"❌ 连接 qBittorrent 失败: {e}")
             logger.error("   请检查：1. qBittorrent 是否已启动？ 2. Web UI 是否已开启？ 3. 端口/账号/密码是否正确？")
@@ -51,9 +53,11 @@ class QBittorrentBridge(Star):
                                             port=self.web_ui_port,
                                             username=self.web_ui_username,
                                             password=self.web_ui_password)
-        logger.info(f"✅ 成功连接到 qBittorrent (v{self.client.app.version})")
-        logger.info(f"   API 版本: {self.client.app.web_api_version}")
-        yield event.plain_result(f"✅ 成功连接到 qBittorrent (v{self.client.app.version})")
+        version = asyncio.to_thread(lambda: self.client.app.version)
+        logger.info(f"✅ 成功连接到 qBittorrent (v{version})")
+        api_version = asyncio.to_thread(lambda: self.client.app.web_api_version)
+        logger.info(f"   API 版本: {api_version}")
+        yield event.plain_result(f"✅ 成功连接到 qBittorrent (v{version})")
 
     @filter.command("magtest")
     async def mag_test(self, event: AstrMessageEvent,magnet_link: str):
@@ -178,7 +182,8 @@ class QBittorrentBridge(Star):
 
         logger.info("➕ 正在发送任务到 qBittorrent...")
         try:
-            await asyncio.to_thread(self.client.torrents_add(urls=magnet_link, tags=['magnet_tester_script'], save_path=self.download_path))
+            await asyncio.to_thread(self.client.torrents_add, urls=magnet_link, tags=['magnet_tester_script'],
+                                    save_path=self.download_path)
             yield event.plain_result(f"✅ 任务已发送至 qBittorrent，任务hash:{info_hash}。")
             if self.custom_trackers:
                 logger.info(f"📡 注入 {len(self.custom_trackers)} 个自定义 Tracker...")
