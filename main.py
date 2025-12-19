@@ -110,25 +110,21 @@ class QBittorrentBridge(Star):
         logger.info("⏳ 正在解析元数据 (等待中)...")
 
         meta_success, torrents = await self.query_meta_result(info_hash)
+        # 处理失败情况
+        if not torrents:
+            yield event.plain_result("警告！未能获取到任务信息，任务可能添加失败！")
+            return
 
         # 循环结束后的判断逻辑
-        if meta_success:
-            # 处理失败情况
-            if not torrents:
-                yield event.plain_result("未能获取到任务信息，任务可能添加失败")
-            else:
-                # 虽然获取到了任务，但在超时时间内元数据仍未就绪
-                yield event.plain_result(f"元数据解析超时 ({self.meta_timeout}s)")
-        else:
+        if not meta_success:
             logger.error("❌ 元数据获取超时。该资源可能无人做种。")
             yield event.plain_result("❌ 元数据获取超时。该资源可能无人做种。")
             await self.clean_task(info_hash)
             return
 
         # 获取详细信息
-        t_list = await asyncio.to_thread(self.client.torrents_info, torrent_hashes=info_hash)
-        if t_list:
-            torrent = t_list[0]
+        if torrents:
+            torrent = torrents[0]
             first_report = (f"✅ 元数据获取成功！\n"
                             f"📦 资源名称: {torrent.name}\n"
                             f"💾 总大小: {torrent.total_size / 1024 / 1024:.2f} MB")
@@ -145,9 +141,9 @@ class QBittorrentBridge(Star):
         logger.info("-" * 10)
 
         # 6. 最终报告
-        t_list = await asyncio.to_thread(self.client.torrents_info, torrent_hashes=info_hash)
-        if t_list:
-            torrent = t_list[0]
+        torrents = await asyncio.to_thread(self.client.torrents_info, torrent_hashes=info_hash)
+        if torrents:
+            torrent = torrents[0]
             final_report = await self.get_final_report(torrent)
             yield event.plain_result(final_report)
 
