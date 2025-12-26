@@ -3,7 +3,7 @@
 
 ![AstrBot](https://img.shields.io/badge/AstrBot-Plugin-violet)
 ![Python](https://img.shields.io/badge/Python-3.8%2B-blue)
-![License](https://img.shields.io/badge/License-AGPL-3.0-green)
+![License](https://img.shields.io/badge/License-AGPL_3.0-green)
 
 **连接 AstrBot 与 qBittorrent，实现群聊/私聊远程下载管理**
 
